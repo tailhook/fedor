@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{% block title %}{% endblock title %}</title>
+    </head>
+    <body>
+        {% block body %}
+        {% endblock body %}
+    </body>
+    {% block scripts_area %}
+        <script src="/js/jquery.js"></script>
+        <script src="/js/hotkeys.js"></script>
+        <script src="/js/ws.js"></script>
+        <script src="/js/base.js"></script>
+    {% endblock scripts_area %}
+</html>
+

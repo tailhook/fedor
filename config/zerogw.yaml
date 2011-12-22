@@ -1,0 +1,57 @@
+_port: &port 8000
+_dir: &dir ./run
+
+Server:
+  zmq-io-threads: 1
+  disk-io-threads: 1
+  listen:
+    - host: 0.0.0.0
+      port: *port
+  status:
+    socket:
+    - !zmq.Bind ipc://$dir/zerogw
+  control:
+    socket:
+    - !zmq.Bind ipc://$dir/zerogw-ctl
+  error-log:
+    level: 3
+    warning-timeout: 300
+    filename: ./run/error.log
+
+Routing:
+  routing: !Prefix ~
+  routing-by: !Uri ~
+  map:
+    "/*":
+      zmq-forward:
+        enabled: yes
+        socket:
+        - !zmq.Bind "ipc://$dir/notepad.sock"
+        contents:
+        - !Uri
+    "/~*":
+      zmq-forward:
+        enabled: yes
+        socket:
+        - !zmq.Bind "ipc://$dir/dashboard.sock"
+        contents:
+        - !Uri
+    "/.ws*":
+      websocket:
+        enabled: yes
+        forward: !zmq.Push
+        - !zmq.Bind "ipc://$dir/ws-default.sock"
+        named-outputs:
+          notepad:
+          - !zmq.Bind "ipc://$dir/ws-notepad.sock"
+        subscribe: !zmq.Sub
+        - !zmq.Bind "ipc://$dir/ws-output.sock"
+  children:
+    - match:
+      - "/js/*"
+      - "/css/*"
+      - "/img/*"
+      static:
+        enabled: yes
+        root: ./public
+        restrict-root: no  # bad for production

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ notepad.title }}</h1>
+<ul class="notepad">
+    {% for rc in notepad.records %}
+        <li>{{ rc }}</li>
+    {% endfor %}
+</ul>
+
+{% endblock body %}

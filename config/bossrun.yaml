@@ -1,0 +1,10 @@
+bossrun:
+  failfast: true
+
+Processes:
+  zerogw:
+    executable-path: /usr/bin/zerogw
+    arguments: [zerogw, -c, 'config/zerogw.yaml']
+  python:
+    executable-path: /usr/bin/python
+    arguments: [python, -m, 'fedor']
