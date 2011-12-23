@@ -11,6 +11,8 @@ jinja = jinja2.Environment(
 camel_re = re.compile('([A-Z][^A-Z])')
 split_re = re.compile('[ _]')
 
+output = None  # to be injected by main
+
 
 class Notepad(object):
 
@@ -31,15 +33,24 @@ class Notepad(object):
 
     def append_record(self, text):
         text = text.strip()
-        redis.redis().execute("RPUSH", "notepad:"+self.ident, text)
-        return text
+        red = redis.redis()
+        recid = red.execute('INCR', 'record_counter')
+        rec = {
+            'id': recid,
+            'title': text,
+            }
+        redis.redis().pipeline((
+            ("SET", 'record:{}'.format(recid), json.dumps(rec)),
+            ("RPUSH", "notepad:records:"+self.ident, recid),
+            ))
+        return rec
 
     @property
     def records(self):
         # TODO(pc) cache
-        recs = redis.redis().execute("LRANGE", "notepad:"+self.ident, 0, -1)
-        for i in recs:
-            yield i.decode('utf-8')
+        recs = redis.redis().execute("SORT",
+            "notepad:records:"+self.ident, "BY", "*", "GET", "record:*")
+        return [json.loads(rec.decode('utf-8')) for rec in recs]
 
 
 def process(url):
@@ -49,12 +60,15 @@ def process(url):
         jinja.get_template('notepad.html').render(notepad=note)]
 
 
-def process_websock(output, cid, _message, body=None, *tail):
+def process_websock(cid, _message, body=None, *tail):
     if _message != b'message':
         return
     parts = json.loads(body.decode('utf-8'))
     cmd, req_id, np_id, *args = parts
     np = Notepad.from_id(np_id)
-    value = getattr(np, cmd[len('notepad.'):])(*args)
+    cmd = cmd[len('notepad.'):]
+    if cmd.startswith('_') or cmd.endswith('_'):
+        return
+    value = getattr(np, cmd)(*args)
     output.publish('send', cid,
         json.dumps(['_reply', req_id, value]))

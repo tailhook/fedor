@@ -53,8 +53,8 @@ jQuery(function($) {
         }
         inp.attr('disabled', 'disabled');
         request('notepad.append_record', notepad_id, inp.val())
-            .set_callback(function (text) {
-                inp.parent().text(text);
+            .set_callback(function (rec) {
+                inp.parent().attr('id', 'rec_'+rec.id).text(rec.title);
             });
     }
     function blur_input(el) {
