@@ -3,8 +3,11 @@ import json
 from urllib.parse import unquote_plus as urldecode
 
 import jinja2
-from zorro import redis
-from zorro.zerogw import ParamService as HTTPService, JSONWebsockInput, public
+from zorro.redis import Redis
+from zorro.zerogw import (ParamService as HTTPService,
+                          JSONWebsockInput,
+                          public)
+from zorro.di import has_dependencies, dependency, di
 
 
 jinja = jinja2.Environment(
@@ -12,10 +15,11 @@ jinja = jinja2.Environment(
 camel_re = re.compile('([A-Z][^A-Z])')
 split_re = re.compile('[ _]')
 
-output = None  # to be injected by main
 
-
+@has_dependencies
 class Notepad(object):
+
+    redis = dependency(Redis, 'redis')
 
     def __init__(self, ident, title):
         self.ident = ident
@@ -34,13 +38,12 @@ class Notepad(object):
 
     def append_record(self, text):
         text = text.strip()
-        red = redis.redis()
-        recid = red.execute('INCR', 'record_counter')
+        recid = self.redis.execute('INCR', 'record_counter')
         rec = {
             'id': recid,
             'title': text,
             }
-        redis.redis().pipeline((
+        self.redis.pipeline((
             ("SET", 'record:{}'.format(recid), json.dumps(rec)),
             ("RPUSH", "notepad:records:"+self.ident, recid),
             ))
@@ -49,26 +52,28 @@ class Notepad(object):
     @property
     def records(self):
         # TODO(pc) cache
-        recs = redis.redis().execute("SORT",
+        recs = self.redis.execute("SORT",
             "notepad:records:"+self.ident, "BY", "*", "GET", "record:*")
         return [json.loads(rec.decode('utf-8')) for rec in recs]
 
 
+@has_dependencies
 class NotepadHTTP(HTTPService):
 
     @public
     def default(self, uri):
-        note = Notepad.from_url(uri)
+        note = di(self).inject(Notepad.from_url(uri))
         return (b'200 OK',
                 b'Content-Type\0text/html; charset=utf-8\0',
                 jinja.get_template('notepad.html').render(notepad=note))
 
 
+@has_dependencies
 class NotepadWebsock(JSONWebsockInput):
 
     @public
     def append_record(self, npname, text):
-        note = Notepad.from_id(npname)
+        note = di(self).inject(Notepad.from_id(npname))
         return note.append_record(text)
 
 
