@@ -12,6 +12,7 @@ jQuery(function($) {
     function Request(args) {
         var rid = Math.random().toString();
         args.splice(1, 0, rid);
+        args[0] += '+';
         var json = JSON.stringify(args);
         console.log("Requesting", json);
         conn.send(json);

@@ -4,6 +4,7 @@ from urllib.parse import unquote_plus as urldecode
 
 import jinja2
 from zorro import redis
+from zorro.zerogw import ParamService as HTTPService, JSONWebsockInput, public
 
 
 jinja = jinja2.Environment(
@@ -22,7 +23,7 @@ class Notepad(object):
 
     @classmethod
     def from_url(cls, url):
-        url = urldecode(url[1:].decode('utf-8'))
+        url = urldecode(url[1:])
         words = split_re.split(camel_re.sub(' \\1', url))
         title = ' '.join(words).title()
         return cls(url, title)
@@ -53,22 +54,21 @@ class Notepad(object):
         return [json.loads(rec.decode('utf-8')) for rec in recs]
 
 
-def process(url):
-    note = Notepad.from_url(url)
-    return [b'200 OK',
-        b'Content-Type\0text/html; charset=utf-8\0',
-        jinja.get_template('notepad.html').render(notepad=note)]
+class NotepadHTTP(HTTPService):
+
+    @public
+    def default(self, uri):
+        note = Notepad.from_url(uri)
+        return (b'200 OK',
+                b'Content-Type\0text/html; charset=utf-8\0',
+                jinja.get_template('notepad.html').render(notepad=note))
 
 
-def process_websock(cid, _message, body=None, *tail):
-    if _message != b'message':
-        return
-    parts = json.loads(body.decode('utf-8'))
-    cmd, req_id, np_id, *args = parts
-    np = Notepad.from_id(np_id)
-    cmd = cmd[len('notepad.'):]
-    if cmd.startswith('_') or cmd.endswith('_'):
-        return
-    value = getattr(np, cmd)(*args)
-    output.publish('send', cid,
-        json.dumps(['_reply', req_id, value]))
+class NotepadWebsock(JSONWebsockInput):
+
+    @public
+    def append_record(self, npname, text):
+        note = Notepad.from_id(npname)
+        return note.append_record(text)
+
+
