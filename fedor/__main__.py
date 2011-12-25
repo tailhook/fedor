@@ -1,3 +1,5 @@
+import logging
+
 from zorro import Hub, zmq
 from zorro.zerogw import JSONWebsockOutput, JSONWebsockInput
 from zorro.di import DependencyInjector, has_dependencies, dependency
@@ -17,6 +19,8 @@ class DefaultHandler(JSONWebsockInput):
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
+
     di = DependencyInjector()
     di['redis'] = Redis()
 

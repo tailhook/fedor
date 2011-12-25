@@ -18,7 +18,12 @@ function Hotkeys() {
         if(lst.length < 1) return;
         var tmp = bindings;
         while(lst.length > 1) {
-            tmp = tmp[lst.shift()];
+            var single = lst.shift();
+            if(!(single in tmp)) {
+                tmp = tmp[single] = {};
+            } else {
+                tmp = tmp[single];
+            }
             if(typeof tmp == 'function')
                 throw Error("Conflicting binding \"" + key + "\"");
         }

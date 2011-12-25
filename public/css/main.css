@@ -1,0 +1,10 @@
+ul.notepad {
+    list-style:none;
+    padding-left: 2px;
+}
+.record {
+    padding: 4px 8px 4px 8px;
+}
+.record.cursor {
+    background-color: silver;
+}

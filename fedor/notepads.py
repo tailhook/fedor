@@ -8,6 +8,7 @@ from zorro.zerogw import (ParamService as HTTPService,
                           JSONWebsockInput,
                           public)
 from zorro.di import has_dependencies, dependency, di
+from zorro.util import cached_property as cached
 
 
 jinja = jinja2.Environment(
@@ -24,6 +25,7 @@ class Notepad(object):
     def __init__(self, ident, title):
         self.ident = ident
         self.title = title
+        self.records_key = ("notepad:records:"+self.ident).encode('ascii')
 
     @classmethod
     def from_url(cls, url):
@@ -36,25 +38,21 @@ class Notepad(object):
     def from_id(cls, ident):
         return Notepad(ident, None)
 
-    def append_record(self, text):
-        text = text.strip()
-        recid = self.redis.execute('INCR', 'record_counter')
-        rec = {
-            'id': recid,
-            'title': text,
-            }
-        self.redis.pipeline((
-            ("SET", 'record:{}'.format(recid), json.dumps(rec)),
-            ("RPUSH", "notepad:records:"+self.ident, recid),
-            ))
-        return rec
-
-    @property
+    @cached
     def records(self):
         # TODO(pc) cache
         recs = self.redis.execute("SORT",
-            "notepad:records:"+self.ident, "BY", "*", "GET", "record:*")
+            self.records_key, "BY", "*", "GET", "record:*")
         return [json.loads(rec.decode('utf-8')) for rec in recs]
+
+    def new_record(self, title):
+        title = title.strip()
+        recid = self.redis.execute('INCR', 'record_counter')
+        rec = {
+            'id': recid,
+            'title': title,
+            }
+        return rec
 
 
 @has_dependencies
@@ -71,9 +69,67 @@ class NotepadHTTP(HTTPService):
 @has_dependencies
 class NotepadWebsock(JSONWebsockInput):
 
+    redis = dependency(Redis, 'redis')
+
     @public
     def append_record(self, npname, text):
         note = di(self).inject(Notepad.from_id(npname))
-        return note.append_record(text)
+        rec = note.new_record(text)
+        self.redis.pipeline((
+            (b"SET", 'record:{}'.format(rec['id']), json.dumps(rec)),
+            (b"RPUSH", note.records_key, rec['id']),
+            ))
+        return rec
+
+    @public
+    def prepend_record(self, npname, text):
+        note = di(self).inject(Notepad.from_id(npname))
+        rec = note.new_record(text)
+        self.redis.pipeline((
+            (b"SET", 'record:{}'.format(rec['id']), json.dumps(rec)),
+            (b"LPUSH", note.records_key, rec['id']),
+            ))
+        return rec
+
+    @public
+    def insert_after(self, npname, hint,  text):
+        note = di(self).inject(Notepad.from_id(npname))
+        rec = note.new_record(text)
+        self.redis.pipeline((
+            (b"SET", 'record:{}'.format(rec['id']), json.dumps(rec)),
+            (b"LINSERT", note.records_key, "AFTER", hint, rec['id']),
+            ))
+        return rec
+
+    @public
+    def insert_before(self, npname, hint,  text):
+        note = di(self).inject(Notepad.from_id(npname))
+        rec = note.new_record(text)
+        self.redis.pipeline((
+            (b"SET", 'record:{}'.format(rec['id']), json.dumps(rec)),
+            (b"LINSERT", note.records_key, "BEFORE", hint, rec['id']),
+            ))
+        return rec
+
+    @public
+    def set_record_title(self, id, text):
+        rec = self.redis.execute("GET", 'record:{}'.format(id))
+        if rec:
+            rec = json.loads(rec.decode('utf-8'))
+            rec['title'] = text
+            self.redis.execute(b"SET", 'record:{}'.format(rec['id']),
+                               json.dumps(rec))
+            return rec
+        else:
+            return 'not_found'
+
+    @public
+    def remove_record(self, npname, id):
+        note = di(self).inject(Notepad.from_id(npname))
+        self.redis.pipeline((
+            (b'LREM', note.records_key, b'0', id),
+            (b'DEL', 'record:{}'.format(id)),
+            ))
+        return 'ok'
 
 

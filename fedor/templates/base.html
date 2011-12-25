@@ -2,6 +2,9 @@
 <html>
     <head>
         <title>{% block title %}{% endblock title %}</title>
+        {% block css_area %}
+        <link href="/css/main.css" rel="stylesheet">
+        {% endblock css_area %}
     </head>
     <body>
         {% block body %}
@@ -11,6 +14,7 @@
         <script src="/js/jquery.js"></script>
         <script src="/js/hotkeys.js"></script>
         <script src="/js/ws.js"></script>
+        <script src="/js/scroll.js"></script>
         <script src="/js/base.js"></script>
     {% endblock scripts_area %}
 </html>

@@ -3,7 +3,7 @@
 <h1>{{ notepad.title }}</h1>
 <ul class="notepad">
     {% for rc in notepad.records %}
-        <li id="rec_{{ rc.id }}">{{ rc.title }}</li>
+        <li class="record" id="rec_{{ rc.id }}">{{ rc.title }}</li>
     {% endfor %}
 </ul>
 
