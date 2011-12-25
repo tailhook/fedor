@@ -4,6 +4,9 @@ jQuery(function($) {
     var conn = new Connection('/.ws');
     var requests = {};
     var cursor = null;
+    var cursor_index = 0;
+    var notepads = {};
+    notepads[notepad_id] = new Notepad(notepad_id, $('ul.notepad'));
 
     function notify() {
         var json = JSON.stringify(Array.prototype.slice.call(arguments));
@@ -35,9 +38,22 @@ jQuery(function($) {
             json.splice(0, 2);
             if(req.callback)
                 req.callback.apply(req, json);
+            return;
+        }
+        var parts = json[0].split('.');
+        if(parts[0] == 'notepad') {
+            var nid = json[1];
+            json.splice(0, 2);
+            notepads[nid][parts[1]].apply(null, json);
+            check_cursor();
+            return;
         }
     }
+    function subscribe(ev) {
+        request('notepad.subscribe', notepad_id);
+    }
     conn.onmessage = message;
+    conn.onopen = subscribe;
     function _record_modify(inserter) {
         var el = $("<li class='record'><input type='text'></li>");
         el.find('input')
@@ -64,9 +80,9 @@ jQuery(function($) {
     function remove_record() {
         if(!cursor || !cursor.length) return;
         var rec = cursor;
-        cursor_remove();
         rec.remove();
         request('notepad.remove_record', notepad_id, _record_id(rec));
+        check_cursor();
     }
     function append_record() {
         _record_modify(function (el) {
@@ -74,7 +90,8 @@ jQuery(function($) {
             var txt = cursor.text();
             el.attr('id', cursor.attr('id'));
             el.find('input').val(txt);
-            el.data('cmd', ['notepad.set_record_title', _record_id(el)]);
+            el.data('cmd', ['notepad.set_record_title',
+                            notepad_id, _record_id(el)]);
             cursor.replaceWith(el);
         });
         return false;
@@ -113,17 +130,14 @@ jQuery(function($) {
         cursor = el;
         cursor.addClass('cursor');
         cursor.scrollintoview();
+        cursor_index = cursor.index();
     }
-    function cursor_remove() {
-        var ncur = cursor.next();
-        if(!ncur.length) {
-            ncur = cursor.prev();
-        }
-        console.log("NCUR", ncur);
-        if(!ncur.length) {
-            cursor = null;
-        } else {
-            set_cursor(ncur);
+    function check_cursor() {
+        if(!cursor.parent().length) {
+            set_cursor($('li.record').eq(cursor_index));
+            if(!cursor.parent().length) {
+                set_cursor($('li.record').eq(-1));
+            }
         }
     }
     function cursor_top() {
@@ -148,21 +162,23 @@ jQuery(function($) {
     }
     function finish_record(ev) {
         var inp = $(ev.target);
-        var rec = inp.parent('li.record');
+        var rel = inp.parent('li.record');
         var txt = inp.val().trim();
         if(!txt.length) {
-            cursor_remove();
-            rec.remove();
-            if(rec.attr('id')) {
-                request('notepad.remove_record', notepad_id, _record_id(rec));
+            rel.remove();
+            if(rel.attr('id')) {
+                request('notepad.remove_record', notepad_id, _record_id(rel));
             }
             return;
         }
         inp.attr('disabled', 'disabled');
-        var cmd = rec.data('cmd').concat([inp.val()]);
+        var cmd = rel.data('cmd').concat([inp.val()]);
         request.apply(request, cmd)
             .set_callback(function (rec) {
-                inp.parent().attr('id', 'rec_'+rec.id).text(rec.title);
+                if(!rel.attr('id')) {
+                    rel.remove();
+                    check_cursor();
+                }
             });
     }
     function blur_input(el) {
