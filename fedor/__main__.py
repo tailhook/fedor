@@ -1,5 +1,6 @@
 import logging
 
+import jinja2
 from zorro import Hub, zmq
 from zorro.zerogw import JSONWebsockOutput, JSONWebsockInput
 from zorro.di import DependencyInjector, has_dependencies, dependency
@@ -23,12 +24,16 @@ def main():
 
     di = DependencyInjector()
     di['redis'] = Redis()
+    di['jinja'] = jinja2.Environment(
+        loader=jinja2.PackageLoader(__name__, 'templates'))
+
 
     note = zmq.rep_socket(
         di.inject(notepads.NotepadHTTP('uri')))
     note.connect('ipc://./run/notepad.sock')
 
-    dash = zmq.rep_socket(dashboards.process)
+    dash = zmq.rep_socket(
+        di.inject(dashboards.DashboardHTTP('uri')))
     dash.connect('ipc://./run/dashboard.sock')
 
     outsock = zmq.pub_socket()
@@ -46,5 +51,6 @@ def main():
     wsnote.connect('ipc://./run/ws-notepad.sock')
 
 if __name__ == '__main__':
+    from .__main__ import main  # to fix module's __name__
     hub = Hub()
     hub.run(main)

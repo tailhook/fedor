@@ -3,15 +3,20 @@
 {% block scripts_area %}
     {{ super() }}
     <script src="/js/connection.js"></script>
-    <script src="/js/base.js"></script>
-{% endblock scripts_area %}
+    <script src="/js/dashboard.js"></script>
+{% endblock %}
 
 {% block body %}
-<h1>{{ notepad.title }}</h1>
+<h1>{{ title }}</h1>
+{% for kind, notepad in layout %}
+<div id="notepad_{{ notepad.ident }}" class="notepad {{ kind }}">
+<h2>{{ notepad.title }}</h2>
 <ul class="notepad">
     {% for rc in notepad.records %}
         <li class="record" id="rec_{{ rc.id }}">{{ rc.title }}</li>
     {% endfor %}
 </ul>
+</div>
+{% endfor %}
 
 {% endblock body %}

@@ -1,59 +1,15 @@
 jQuery(function($) {
 
     var notepad_id = location.pathname.substr(1);
-    var conn = new Connection('/.ws');
-    var requests = {};
     var cursor = null;
     var cursor_index = 0;
-    var notepads = {};
     notepads[notepad_id] = new Notepad(notepad_id, $('ul.notepad'));
 
-    function notify() {
-        var json = JSON.stringify(Array.prototype.slice.call(arguments));
-        console.log("Notifying", json);
-        conn.send(json);
+    connection.onopen = function() {
+        notify('notepad.subscribe', notepad_id);
     }
-    function Request(args) {
-        var rid = Math.random().toString();
-        args.splice(1, 0, rid);
-        args[0] += '+';
-        var json = JSON.stringify(args);
-        console.log("Requesting", json);
-        conn.send(json);
-        this.id = rid;
-        requests[this.id] = this;
-    }
-    Request.prototype.set_callback = function add_callback(fun) {
-        this.callback = fun;
-    }
-    function request() {
-        return new Request(Array.prototype.slice.call(arguments));
-    }
-    function message(ev) {
-        var json = JSON.parse(ev.data);
-        console.log("GOT MESSAGE", json);
-        if(json[0] == '_reply') {
-            var req = requests[json[1]];
-            delete requests[json[1]];
-            json.splice(0, 2);
-            if(req.callback)
-                req.callback.apply(req, json);
-            return;
-        }
-        var parts = json[0].split('.');
-        if(parts[0] == 'notepad') {
-            var nid = json[1];
-            json.splice(0, 2);
-            notepads[nid][parts[1]].apply(null, json);
-            check_cursor();
-            return;
-        }
-    }
-    function subscribe(ev) {
-        request('notepad.subscribe', notepad_id);
-    }
-    conn.onmessage = message;
-    conn.onopen = subscribe;
+    after_message(check_cursor);
+
     function _record_modify(inserter) {
         var el = $("<li class='record'><input type='text'></li>");
         el.find('input')
@@ -74,6 +30,8 @@ jQuery(function($) {
             el.attr('id', cursor.attr('id'));
             cursor.replaceWith(el);
             el.find('input').val(txt).select();
+            el.data('cmd', ['notepad.set_record_title',
+                            notepad_id, _record_id(el)]);
         });
         return false;
     }
@@ -89,10 +47,10 @@ jQuery(function($) {
             if(!cursor || !cursor.length) return;
             var txt = cursor.text();
             el.attr('id', cursor.attr('id'));
+            cursor.replaceWith(el);
             el.find('input').val(txt);
             el.data('cmd', ['notepad.set_record_title',
                             notepad_id, _record_id(el)]);
-            cursor.replaceWith(el);
         });
         return false;
     }
@@ -166,6 +124,7 @@ jQuery(function($) {
         var txt = inp.val().trim();
         if(!txt.length) {
             rel.remove();
+            check_cursor();
             if(rel.attr('id')) {
                 request('notepad.remove_record', notepad_id, _record_id(rel));
             }
@@ -200,4 +159,4 @@ jQuery(function($) {
     var viins = new Hotkeys();
     viins.allow_input = true;
     viins.add_key('<C-[> <esc> <return>', blur_input);
-})
+});

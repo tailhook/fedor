@@ -2,6 +2,14 @@ ul.notepad {
     list-style:none;
     padding-left: 2px;
 }
+div.notepad.left {
+    float: left;
+    width: 50%;
+}
+div.notepad.right {
+    float: right;
+    width: 50%;
+}
 .record {
     padding: 4px 8px 4px 8px;
 }

@@ -2,6 +2,7 @@
     function Notepad(id, obj) {
         this.ident = id;
         this.obj = $(obj);
+        return this;
     }
     function _make_record(rec) {
         return $("<li class='record'>")

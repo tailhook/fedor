@@ -1,8 +1,6 @@
-import re
 import json
-from urllib.parse import unquote_plus as urldecode
 
-import jinja2
+from jinja2 import Environment as Jinja
 from zorro.redis import Redis
 from zorro.zerogw import (ParamService as HTTPService,
                           JSONWebsockInput,
@@ -10,11 +8,7 @@ from zorro.zerogw import (ParamService as HTTPService,
 from zorro.di import has_dependencies, dependency, di
 from zorro.util import cached_property as cached
 
-
-jinja = jinja2.Environment(
-    loader=jinja2.PackageLoader(__name__, 'templates'))
-camel_re = re.compile('([A-Z][^A-Z])')
-split_re = re.compile('[ _]')
+from .util import uri_to_title
 
 
 @has_dependencies
@@ -25,15 +19,13 @@ class Notepad(object):
     def __init__(self, ident, title):
         self.ident = ident
         self.title = title
-        self.records_key = ("notepad:records:"+self.ident).encode('ascii')
-        self.topic = ("notepad:"+self.ident).encode('ascii')
+        self.records_key = ("notepad:{}:records".format(self.ident))\
+            .encode('ascii')
+        self.topic = ("notepad:{}".format(self.ident)).encode('ascii')
 
     @classmethod
     def from_url(cls, url):
-        url = urldecode(url[1:])
-        words = split_re.split(camel_re.sub(' \\1', url))
-        title = ' '.join(words).title()
-        return cls(url, title)
+        return cls(url[1:], uri_to_title(url))
 
     @classmethod
     def from_id(cls, ident):
@@ -43,7 +35,7 @@ class Notepad(object):
     def records(self):
         # TODO(pc) cache
         recs = self.redis.execute("SORT",
-            self.records_key, "BY", "*", "GET", "record:*")
+            self.records_key, "BY", "nokey", "GET", "record:*")
         return [json.loads(rec.decode('utf-8')) for rec in recs]
 
     def new_record(self, title):
@@ -59,12 +51,14 @@ class Notepad(object):
 @has_dependencies
 class NotepadHTTP(HTTPService):
 
+    jinja = dependency(Jinja, 'jinja')
+
     @public
     def default(self, uri):
         note = di(self).inject(Notepad.from_url(uri))
         return (b'200 OK',
                 b'Content-Type\0text/html; charset=utf-8\0',
-                jinja.get_template('notepad.html').render(notepad=note))
+                self.jinja.get_template('notepad.html').render(notepad=note))
 
 
 @has_dependencies
