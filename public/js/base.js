@@ -1,13 +1,8 @@
 jQuery(function($) {
 
-    var notepad_id = location.pathname.substr(1);
     var cursor = null;
+    var current_notepad = $("ul.notepad:has(li):eq(0)");
     var cursor_index = 0;
-    notepads[notepad_id] = new Notepad(notepad_id, $('ul.notepad'));
-
-    connection.onopen = function() {
-        notify('notepad.subscribe', notepad_id);
-    }
     after_message(check_cursor);
 
     function _record_modify(inserter) {
@@ -23,6 +18,11 @@ jQuery(function($) {
     function _record_id(el) {
         return el.attr('id').split('_')[1];
     }
+    function _notepad_id(el) {
+        console.log("EL", el, el.closest('div.notepad'));
+        var id = el.parents('div.notepad').attr('id')
+        return id.substr(id.indexOf('_')+1);
+    }
     function replace_record() {
         if(!cursor || !cursor.length) return;
         _record_modify(function (el) {
@@ -31,15 +31,15 @@ jQuery(function($) {
             cursor.replaceWith(el);
             el.find('input').val(txt).select();
             el.data('cmd', ['notepad.set_record_title',
-                            notepad_id, _record_id(el)]);
+                            _notepad_id(el), _record_id(el)]);
         });
         return false;
     }
     function remove_record() {
         if(!cursor || !cursor.length) return;
         var rec = cursor;
+        request('notepad.remove_record', _notepad_id(rec), _record_id(rec));
         rec.remove();
-        request('notepad.remove_record', notepad_id, _record_id(rec));
         check_cursor();
     }
     function append_record() {
@@ -50,19 +50,19 @@ jQuery(function($) {
             cursor.replaceWith(el);
             el.find('input').val(txt);
             el.data('cmd', ['notepad.set_record_title',
-                            notepad_id, _record_id(el)]);
+                            _notepad_id(el), _record_id(el)]);
         });
         return false;
     }
     function insert_record_after() {
         _record_modify(function (el) {
             if(!cursor || !cursor.length) {
-                el.data('cmd', ['notepad.append_record', notepad_id]);
-                el.appendTo($("ul.notepad"))
+                el.appendTo(current_notepad);
+                el.data('cmd', ['notepad.append_record', _notepad_id(el)]);
             } else {
-                el.data('cmd', ['notepad.insert_after',
-                    notepad_id, _record_id(cursor)]);
                 el.insertAfter(cursor);
+                el.data('cmd', ['notepad.insert_after',
+                    _notepad_id(el), _record_id(cursor)]);
             }
         });
         return false;
@@ -70,12 +70,12 @@ jQuery(function($) {
     function insert_record_before() {
         _record_modify(function (el) {
             if(!cursor || !cursor.length) {
-                el.data('cmd', ['notepad.prepend_record', notepad_id]);
-                el.prependTo($("ul.notepad"))
+                el.prependTo(current_notepad);
+                el.data('cmd', ['notepad.prepend_record', _notepad_id(el)]);
             } else {
-                el.data('cmd', ['notepad.insert_before',
-                    notepad_id, _record_id(cursor)]);
                 el.insertBefore(cursor);
+                el.data('cmd', ['notepad.insert_before',
+                    _notepad_id(el), _record_id(cursor)]);
             }
         });
         return false;
@@ -92,9 +92,9 @@ jQuery(function($) {
     }
     function check_cursor() {
         if(!cursor.parent().length) {
-            set_cursor($('li.record').eq(cursor_index));
+            set_cursor($('li.record', current_notepad).eq(cursor_index));
             if(!cursor.parent().length) {
-                set_cursor($('li.record').eq(-1));
+                set_cursor($('li.record', current_notepad).eq(-1));
             }
         }
     }
@@ -103,6 +103,12 @@ jQuery(function($) {
     }
     function cursor_bottom() {
         set_cursor($("li.record").eq(-1));
+    }
+    function cursor_beginnotepad() {
+        set_cursor($("li.record:eq(0)", current_notepad));
+    }
+    function cursor_endnotepad() {
+        set_cursor($("li.record", current_notepad).eq(-1));
     }
     function cursor_up() {
         if(!cursor) {
@@ -118,16 +124,36 @@ jQuery(function($) {
             set_cursor(cursor.next());
         }
     }
+    function next_window() {
+        var all = $("ul.notepad");
+        var nwin = all.eq($.inArray(current_notepad[0], all)+1);
+        if(!nwin.length) {
+            nwin = all.eq(0);
+        }
+        current_notepad = nwin;
+        var cur = $("li.record", nwin).eq(0);
+        cursor_index = 0;
+        set_cursor(cur);
+    }
+    function prev_window() {
+        var all = $("ul.notepad");
+        var nwin = all.eq($.inArray(current_notepad[0], all)-1);
+        current_notepad = nwin;
+        var cur = $("li.record", nwin).eq(-1);
+        cursor_index = cur.index() || 0;
+        set_cursor(cur);
+    }
     function finish_record(ev) {
         var inp = $(ev.target);
         var rel = inp.parent('li.record');
         var txt = inp.val().trim();
         if(!txt.length) {
+            if(rel.attr('id')) {
+                request('notepad.remove_record',
+                    _notepad_id(el), _record_id(rel));
+            }
             rel.remove();
             check_cursor();
-            if(rel.attr('id')) {
-                request('notepad.remove_record', notepad_id, _record_id(rel));
-            }
             return;
         }
         inp.attr('disabled', 'disabled');
@@ -153,7 +179,11 @@ jQuery(function($) {
     vicmd.add_key('k', cursor_up);
     vicmd.add_key('gg', cursor_top);
     vicmd.add_key('G', cursor_bottom);
+    vicmd.add_key('<S-[>', cursor_beginnotepad);  // '{'
+    vicmd.add_key('<S-]>', cursor_endnotepad);  // '}'
     vicmd.add_key('dd', remove_record);
+    vicmd.add_key('<C-d>', next_window);
+    vicmd.add_key('<C-u>', prev_window);
     vicmd.bind_to(document);
 
     var viins = new Hotkeys();

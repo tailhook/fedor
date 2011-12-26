@@ -4,14 +4,16 @@
     {{ super() }}
     <script src="/js/connection.js"></script>
     <script src="/js/base.js"></script>
+    <script src="/js/single.js"></script>
 {% endblock scripts_area %}
 
 {% block body %}
+<div id="notepad_{{ notepad.ident }}" class="notepad">
 <h1>{{ notepad.title }}</h1>
 <ul class="notepad">
     {% for rc in notepad.records %}
         <li class="record" id="rec_{{ rc.id }}">{{ rc.title }}</li>
     {% endfor %}
 </ul>
-
+</div>
 {% endblock body %}
