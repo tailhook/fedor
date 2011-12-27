@@ -44,6 +44,8 @@ Routing:
         named-outputs:
           notepad:
           - !zmq.Bind "ipc://$dir/ws-notepad.sock"
+          dashboard:
+          - !zmq.Bind "ipc://$dir/ws-dashboard.sock"
         subscribe: !zmq.Sub
         - !zmq.Bind "ipc://$dir/ws-output.sock"
   children:

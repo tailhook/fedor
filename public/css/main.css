@@ -2,17 +2,20 @@ ul.notepad {
     list-style:none;
     padding-left: 2px;
 }
-div.notepad.left {
+#left_container {
     float: left;
     width: 50%;
 }
-div.notepad.right {
+#right_container {
     float: right;
     width: 50%;
 }
-.record {
+div.notepad.cursor {
+    background-color: silver;
+}
+li.record {
     padding: 4px 8px 4px 8px;
 }
-.record.cursor {
+li.record.cursor {
     background-color: silver;
 }

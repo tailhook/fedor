@@ -1,7 +1,6 @@
-jQuery(function($) {
-
+(function(window, $) {
     var cursor = null;
-    var current_notepad = $("ul.notepad:has(li):eq(0)");
+    var current_notepad = $("ul.notepad:eq(0)");
     var cursor_index = 0;
     after_message(check_cursor);
 
@@ -19,8 +18,11 @@ jQuery(function($) {
         return el.attr('id').split('_')[1];
     }
     function _notepad_id(el) {
-        console.log("EL", el, el.closest('div.notepad'));
-        var id = el.parents('div.notepad').attr('id')
+        if(!el || !el.length)  {
+            var id = el.parents('div.notepad').attr('id');
+        } else {
+            var id = current_notepad.parent('div.notepad').attr('id');
+        }
         return id.substr(id.indexOf('_')+1);
     }
     function replace_record() {
@@ -88,12 +90,13 @@ jQuery(function($) {
         cursor = el;
         cursor.addClass('cursor');
         cursor.scrollintoview();
+        current_notepad = cursor.parent('ul.notepad');
         cursor_index = cursor.index();
     }
     function check_cursor() {
-        if(!cursor.parent().length) {
+        if(!cursor || !cursor.parent().length) {
             set_cursor($('li.record', current_notepad).eq(cursor_index));
-            if(!cursor.parent().length) {
+            if(!cursor || !cursor.parent().length) {
                 set_cursor($('li.record', current_notepad).eq(-1));
             }
         }
@@ -189,4 +192,7 @@ jQuery(function($) {
     var viins = new Hotkeys();
     viins.allow_input = true;
     viins.add_key('<C-[> <esc> <return>', blur_input);
-});
+
+    window.vicmd = vicmd;
+    window.viins = viins;
+})(this, jQuery);

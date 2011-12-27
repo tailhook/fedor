@@ -1,0 +1,4 @@
+* moving records around (yanking probably)
+* dashboard editing (adding new notepads)
+* linking crossdomain sources
+* auth & auth

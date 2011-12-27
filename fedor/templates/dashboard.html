@@ -9,8 +9,10 @@
 
 {% block body %}
 <h1>{{ title }}</h1>
-{% for kind, notepad in layout %}
-<div id="notepad_{{ notepad.ident }}" class="notepad {{ kind }}">
+
+<div id="left_container">
+{% for notepad in left_column %}
+<div id="notepad_{{ notepad.ident }}" class="notepad">
 <h2>{{ notepad.title }}</h2>
 <ul class="notepad">
     {% for rc in notepad.records %}
@@ -19,5 +21,19 @@
 </ul>
 </div>
 {% endfor %}
+</div>
+
+<div id="right_container">
+{% for notepad in right_column %}
+<div id="notepad_{{ notepad.ident }}" class="notepad">
+<h2>{{ notepad.title }}</h2>
+<ul class="notepad">
+    {% for rc in notepad.records %}
+        <li class="record" id="rec_{{ rc.id }}">{{ rc.title }}</li>
+    {% endfor %}
+</ul>
+</div>
+{% endfor %}
+</div>
 
 {% endblock body %}

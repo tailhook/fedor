@@ -10,8 +10,20 @@ function Hotkeys() {
     this.bind_to = function (el) {
         jQuery(el).keydown(handler);
     }
+    this.unbind_from = function (el) {
+        jQuery(el).unbind('keydown', handler);
+    }
     this.add_key = function(key, fun) {
         jQuery.each(key.split(' '), function(i, val) { add_key(val, fun); });
+    }
+    this.handle = function(key, owner) {
+        this.reset();
+        var lst = key.match(/<[^>]+>|./g);
+        jQuery.each(lst, function(i, val) { handle(val, owner); });
+        this.reset();
+    }
+    this.reset = function() {
+        state = null;
     }
     function add_key(key, fun) {
         var lst = key.match(/<[^>]+>|./g);
@@ -29,7 +41,7 @@ function Hotkeys() {
         }
         tmp[lst[0]] = fun;
     }
-    this.handle = function (key, owner) {
+    function handle(key, owner) {
         var nstate = state;
         if(!nstate) nstate = bindings;
         nstate = nstate[key];
@@ -77,7 +89,7 @@ function Hotkeys() {
         if(key.length > 1) {
             key = '<'+key+'>';
         }
-        return self.handle(key, ev.target);
+        return handle(key, ev.target);
     }
     return this;
 }

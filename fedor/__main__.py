@@ -17,6 +17,7 @@ class DefaultHandler(JSONWebsockInput):
 
     def handle_connect(self, cid):
         self.output.add_output(cid, '["notepad.', 'notepad')
+        self.output.add_output(cid, '["dashboard.', 'dashboard')
 
 
 def main():
@@ -26,7 +27,6 @@ def main():
     di['redis'] = Redis()
     di['jinja'] = jinja2.Environment(
         loader=jinja2.PackageLoader(__name__, 'templates'))
-
 
     note = zmq.rep_socket(
         di.inject(notepads.NotepadHTTP('uri')))
@@ -49,6 +49,11 @@ def main():
         di.inject(notepads.NotepadWebsock(prefix='notepad.'),
                   output='websock_output'))
     wsnote.connect('ipc://./run/ws-notepad.sock')
+
+    wsdash = zmq.pull_socket(
+        di.inject(dashboards.DashboardWebsock(prefix='dashboard.'),
+                  output='websock_output'))
+    wsdash.connect('ipc://./run/ws-dashboard.sock')
 
 if __name__ == '__main__':
     from .__main__ import main  # to fix module's __name__
